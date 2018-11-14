@@ -35,13 +35,13 @@ The way it works is this:
 
 So the API becomes:
 
-ssidNeed = need(platform, what)
-ssidAttendTo = attendTo(platform, what)
-serviceInfo(ssid, info)
-subscribe(ssid)
-match(ssid, did)
-solved(ssidNeed, didService)
-referTo(ssidReferrer, ssidReferred)
+- ssidNeed = need(platform, what)
+- ssidAttendTo = attendTo(platform, what)
+- serviceInfo(ssid, info)
+- subscribe(ssid)
+- match(ssid, did)
+- solved(ssidNeed, didService)
+- referTo(ssidReferrer, ssidReferred)
 
 The serviceInfo method is just a method to denote extra information about how the service attends to the need, what it can
 offer, limitations etc.
