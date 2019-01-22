@@ -2,24 +2,36 @@ import * as core from 'discipl-core'
 
 const ABUNDANCE_SERVICE_NEED_PREDICATE = 'need'
 const ABUNDANCE_SERVICE_ATTENDTO_PREDICATE = 'attendTo'
-const ABUNDANCE_SERVICE_SERVICEINFO_PREDICATE = 'serviceInfo'
 const ABUNDANCE_SERVICE_MATCH_PREDICATE = 'matchedNeed'
-const ABUNDANCE_SERVICE_SOLVED_PREDICATE = 'solvedNeed'
-const ABUNDANCE_SERVICE_REFERTO_PREDICATE = 'referTo'
-const ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE = 'referredFrom'
 
 const getCoreAPI = () => {
   return core
 }
 
+/**
+ * retrieve what need it is a service is attending to, returning the object (the "what") of the claim the service registered itself with.
+ * returns false if it could not be determined using the given did
+ */
 const getAttendingTo = async (did) => {
   let conversation = await core.exportLD(did, 1)
-  return Object.keys(conversation[did])[0]
+  if(conversation[did][0] !== undefined &&
+    Object.keys(conversation[did][0][Object.keys(conversation[did][0])[0]])[0] == ABUNDANCE_SERVICE_ATTENDTO_PREDICATE)
+    return Object.keys(conversation[did][0])[0]
+  else
+    return false
 }
 
+/**
+ * retrieve what need it is a service is attending to, returning the object (the "what") of the claim the service registered itself with.
+ * returns false if it could not be determined using the given did
+ */
 const getNeedClaimLink = async (did) => {
   let conversation = await core.exportLD(did, 1)
-  return Object.keys(conversation[did])[0]
+  if(conversation[did][0] !== undefined &&
+    Object.keys(conversation[did][0][Object.keys(conversation[did][0])[0]])[0] == ABUNDANCE_SERVICE_NEED_PREDICATE)
+    return Object.keys(conversation[did][0])[0]
+  else
+    return false
 }
 
 const need = async (connector, what) => {
@@ -34,23 +46,6 @@ const attendTo = async (connector, what) => {
   return ssid
 }
 
-const serviceInfo = async (ssid, info) => {
-  return core.claim(ssid, {[ABUNDANCE_SERVICE_SERVICEINFO_PREDICATE]:info})
-}
-
-const subscribe = async (did) => {
-  let need = await getAttendingTo(did)
-  if (need) {
-    return core.subscribe(null, ABUNDANCE_SERVICE_NEED_PREDICATE, need)
-  } else {
-    need = await getNeedClaimLink(did)
-    if (need) {
-      return core.subscribe(null, ABUNDANCE_SERVICE_MATCH_PREDICATE, need)
-    }
-  }
-  return false
-}
-
 const match = async (ssidService, didInNeed) => {
   let need = await getNeedClaimLink(didInNeed)
   if (need) {
@@ -59,26 +54,31 @@ const match = async (ssidService, didInNeed) => {
   return false
 }
 
-const solved = async (ssidInNeed) => {
-  let need = await getNeedClaimLink(ssidInNeed.did)
+/**
+ * observe the creation of needs attending to or services matching a need on a given platform
+ * @param {string} did - either the did of the service observing creation of needs attending to, or the did of the need observing getting matched by services
+ * @param {string} connector - name of connector to platform on which to observe
+ */
+const observe = async (did, connector) => {
+  let need = await getAttendingTo(did)
   if (need) {
-    return core.claim(ssidInNeed, {[ABUNDANCE_SERVICE_SOLVED_PREDICATE]:need})
+    return core.observe(connector, {[ABUNDANCE_SERVICE_NEED_PREDICATE]: need})
+  } else {
+    need = await getNeedClaimLink(did)
+    if (need) {
+      return core.observe(connector, {[ABUNDANCE_SERVICE_MATCH_PREDICATE]: need})
+    }
   }
   return false
-}
-
-const referTo = async (ssidA, ssidB) => {
-  let link = core.claim(ssidA, {[ABUNDANCE_SERVICE_REFERTO_PREDICATE]:ssidB.did})
-  return core.attest(ssidB, {[ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE]:link})
 }
 
 module.exports = {
   need,
   attendTo,
-  serviceInfo,
-  subscribe,
+  observe,
   match,
-  solved,
-  referTo,
-  getCoreAPI
+  getCoreAPI,
+  ABUNDANCE_SERVICE_NEED_PREDICATE,
+  ABUNDANCE_SERVICE_ATTENDTO_PREDICATE,
+  ABUNDANCE_SERVICE_MATCH_PREDICATE
 }
