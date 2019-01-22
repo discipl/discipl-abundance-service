@@ -56,7 +56,7 @@ const attendTo = async (connector, what) => {
 const match = async (ssidService, didInNeed) => {
   let needLink = await getNeedClaimLink(didInNeed)
   if (needLink) {
-    return core.claim(ssidService, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: needLink })
+    return core.attest(ssidService, ABUNDANCE_SERVICE_MATCH_PREDICATE, needLink)
   }
   return false
 }
