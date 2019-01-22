@@ -2,6 +2,8 @@
 import { expect } from 'chai'
 import * as svc from '../src/index.js'
 
+import { take } from 'rxjs/operators'
+
 describe('descipl-abundance-service-api', () => {
   describe('The discipl abundance service API with memory connector ', () => {
     it('should be able to claim a need', async () => {
@@ -32,6 +34,27 @@ describe('descipl-abundance-service-api', () => {
       // the second claim exported in the channel of the service ssid links to the need claim in the channel of the ssid of the need
       let secondClaim = dataService[ssidService.did][1]
       expect(JSON.stringify(secondClaim[Object.keys(secondClaim)[0]][svc.ABUNDANCE_SERVICE_MATCH_PREDICATE][ssidNeed.did][0])).to.equal(JSON.stringify(needClaim))
+    })
+
+    it('should be able to observe a need being attended', async () => {
+
+      let ssidService = await svc.attendTo('memory', 'beer')
+
+      let observedNeedPromise = (await svc.observe(ssidService.did, 'memory')).pipe(take(1)).toPromise()
+      let ssidNeed = await svc.need('memory', 'beer')
+      let observedNeed = await observedNeedPromise
+
+      expect(observedNeed).to.deep.equal({
+        'claim': {
+          'data': {
+            'need': 'beer'
+          },
+          'previous': null
+        },
+        'ssid': {
+          'pubkey': ssidNeed.pubkey
+        }
+      })
     })
   })
 })

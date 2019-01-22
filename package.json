@@ -16,7 +16,8 @@
   "author": "Bas Kaptijn",
   "license": "GPL-3.0",
   "dependencies": {
-    "discipl-core": "git+https://github.com/discipl/core.git"
+    "discipl-core": "git+https://github.com/discipl/core.git",
+    "rxjs": "^6.3.3"
   },
   "devDependencies": {
     "@babel/core": "^7.2.2",

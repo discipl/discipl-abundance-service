@@ -68,12 +68,15 @@ const match = async (ssidService, didInNeed) => {
  */
 const observe = async (did, connector) => {
   let need = await getAttendingTo(did)
+
   if (need) {
-    return core.observe(connector, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: need })
+    let needClaim = await core.get(need)
+    let needObject = needClaim['data'][ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]
+    return core.observe(null, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: needObject }, false, await getCoreAPI().getConnector(connector))
   } else {
     need = await getNeedClaimLink(did)
     if (need) {
-      return core.observe(connector, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: need })
+      return core.observe(null, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: need }, false, await getCoreAPI().getConnector(connector))
     }
   }
   return false
