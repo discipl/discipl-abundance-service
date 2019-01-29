@@ -76,7 +76,7 @@ const observe = async (did, connector) => {
   } else {
     need = await getNeedClaimLink(did)
     if (need) {
-      return core.observe(null, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: need }, false, await getCoreAPI().getConnector(connector))
+      return core.observe(null, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: need }, false, await getCoreAPI().getConnector(connector))
     }
   }
   return false
