@@ -51,7 +51,7 @@ describe('descipl-abundance-service-api', () => {
           'previous': null
         },
         'ssid': {
-          'pubkey': ssidNeed.pubkey
+          'did': ssidNeed.did
         }
       })
     })
@@ -79,7 +79,35 @@ describe('descipl-abundance-service-api', () => {
           'previous': attendClaimLink
         },
         'ssid': {
-          'pubkey': ssidService.pubkey
+          'did': ssidService.did
+        }
+      })
+    })
+
+    it('should be able to observe a need being matched by listening as attending service', async () => {
+      let ssidService = await svc.attendTo('memory', 'beer')
+      let dataAttend = await svc.getCoreAPI().exportLD(ssidService)
+      let attendClaimLink = Object.keys(dataAttend[ssidService.did][0])[0]
+
+      let observedNeedPromise = (await svc.observe(ssidService.did, 'memory')).pipe(take(1)).toPromise()
+      let ssidNeed = await svc.need('memory', 'beer')
+      let dataNeed = await svc.getCoreAPI().exportLD(ssidNeed)
+      let needClaimLink = Object.keys(dataNeed[ssidNeed.did][0])[0]
+      let observedNeed = await observedNeedPromise
+      let observedMatchPromise = (await svc.observe(ssidNeed.did, 'memory')).pipe(take(1)).toPromise()
+      await svc.match(ssidService, observedNeed.ssid.did)
+
+      let observedMatch = await observedMatchPromise
+
+      expect(observedMatch).to.deep.equal({
+        'claim': {
+          'data': {
+            'matchedNeed': needClaimLink
+          },
+          'previous': attendClaimLink
+        },
+        'ssid': {
+          'did': ssidService.did
         }
       })
     })
