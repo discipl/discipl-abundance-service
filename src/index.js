@@ -82,7 +82,7 @@ const observe = async (did, connector) => {
   return false
 }
 
-module.exports = {
+export {
   need,
   attendTo,
   observe,
