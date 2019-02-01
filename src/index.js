@@ -17,7 +17,7 @@ const getCoreAPI = () => {
  */
 const getAttendingTo = async (did) => {
   let conversation = await core.exportLD(did, 1)
-  if (conversation[did][0] !== undefined &&
+  if (conversation[did] !== undefined && conversation[did][0] !== undefined &&
     Object.keys(conversation[did][0][Object.keys(conversation[did][0])[0]])[0] === ABUNDANCE_SERVICE_ATTENDTO_PREDICATE) { return Object.keys(conversation[did][0])[0] } else { return false }
 }
 
@@ -26,7 +26,7 @@ const getAttendingTo = async (did) => {
  */
 const getNeedClaimLink = async (did) => {
   let conversation = await core.exportLD(did, 1)
-  if (conversation[did][0] !== undefined &&
+  if (conversation[did] !== undefined && conversation[did][0] !== undefined &&
     Object.keys(conversation[did][0][Object.keys(conversation[did][0])[0]])[0] === ABUNDANCE_SERVICE_NEED_PREDICATE) { return Object.keys(conversation[did][0])[0] } else { return false }
 }
 
@@ -68,12 +68,15 @@ const match = async (ssidService, didInNeed) => {
  */
 const observe = async (did, connector) => {
   let need = await getAttendingTo(did)
+
   if (need) {
-    return core.observe(connector, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: need })
+    let needClaim = await core.get(need)
+    let needObject = needClaim['data'][ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]
+    return core.observe(null, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: needObject }, true, await getCoreAPI().getConnector(connector))
   } else {
     need = await getNeedClaimLink(did)
     if (need) {
-      return core.observe(connector, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: need })
+      return core.observe(null, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: need }, true, await getCoreAPI().getConnector(connector))
     }
   }
   return false
