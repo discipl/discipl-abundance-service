@@ -1,4 +1,4 @@
-import * as core from 'discipl-core'
+import * as core from '@discipl/core'
 
 const ABUNDANCE_SERVICE_NEED_PREDICATE = 'need'
 const ABUNDANCE_SERVICE_ATTENDTO_PREDICATE = 'attendTo'
@@ -82,7 +82,7 @@ const observe = async (did, connector) => {
   return false
 }
 
-module.exports = {
+export {
   need,
   attendTo,
   observe,
