@@ -1,8 +1,11 @@
 import * as core from '@discipl/core'
+import { BaseConnector } from '../../discipl-core-baseconnector'
 
 const ABUNDANCE_SERVICE_NEED_PREDICATE = 'need'
 const ABUNDANCE_SERVICE_ATTENDTO_PREDICATE = 'attendTo'
 const ABUNDANCE_SERVICE_MATCH_PREDICATE = 'matchedNeed'
+const ABUNDANCE_SERVICE_REFER_TO_PREDICATE = 'referTo'
+const ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE = 'referredFrom'
 
 /**
  * retrieve the loaded discipl core api object used by this module
@@ -36,6 +39,7 @@ const getNeedClaimLink = async (did) => {
 const need = async (connector, what) => {
   let ssid = await core.newSsid(connector)
   await core.claim(ssid, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what })
+  await core.allow(ssid)
   return ssid
 }
 
@@ -45,6 +49,7 @@ const need = async (connector, what) => {
 const attendTo = async (connector, what) => {
   let ssid = await core.newSsid(connector)
   await core.claim(ssid, { [ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]: what })
+  await core.allow(ssid)
   return ssid
 }
 
@@ -56,27 +61,53 @@ const attendTo = async (connector, what) => {
 const match = async (ssidService, didInNeed) => {
   let needLink = await getNeedClaimLink(didInNeed)
   if (needLink) {
-    return core.attest(ssidService, ABUNDANCE_SERVICE_MATCH_PREDICATE, needLink)
+    let referralSsid = await refer(ssidService, didInNeed)
+
+    return {
+      'ssid': referralSsid,
+      'match': await core.attest(referralSsid, ABUNDANCE_SERVICE_MATCH_PREDICATE, needLink)
+    }
   }
   return false
 }
 
+const refer = async (originSsid, targetDid) => {
+  // TODO: When refer is needed to another platform, allow configuration of this variable
+  let connectorName = BaseConnector.getConnectorName(originSsid.did)
+
+  let referralSsid = await core.newSsid(connectorName)
+  await core.allow(referralSsid, null, targetDid)
+  await core.claim(referralSsid, { [ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE]: originSsid.did })
+  await core.claim(originSsid, { [ABUNDANCE_SERVICE_REFER_TO_PREDICATE]: referralSsid.did })
+
+  return referralSsid
+}
+
 /**
  * Observe the creation of needs attending to or services matching a need on a given platform
- * @param {string} did - either the did of the service observing creation of needs attending to, or the did of the need observing getting matched by services
+ * @param {object} ssid - either the ssid of the service observing creation of needs attending to, or the did of the need observing getting matched by services
  * @param {string} connector - name of connector to platform on which to observe
  */
-const observe = async (did, connector) => {
-  let need = await getAttendingTo(did)
+const observe = async (ssid, connector) => {
+  let need = await getAttendingTo(ssid.did)
 
   if (need) {
     let needClaim = await core.get(need)
     let needObject = needClaim['data'][ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]
-    return core.observe(null, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: needObject }, true, await getCoreAPI().getConnector(connector))
+    let observable = core.observe(null, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: needObject }, true, await getCoreAPI().getConnector(connector))
+
+    return observable.pipe(async (claim) => {
+      return match(ssid, claim.did)
+    })
+
   } else {
-    need = await getNeedClaimLink(did)
+    need = await getNeedClaimLink(ssid.did)
     if (need) {
-      return core.observe(null, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: need }, true, await getCoreAPI().getConnector(connector))
+      let observable = core.observe(null, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: need }, true, await getCoreAPI().getConnector(connector))
+
+      return observable.pipe(async (claim) => {
+        return refer(ssid, claim.did)
+      })
     }
   }
   return false
