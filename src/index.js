@@ -1,13 +1,14 @@
 import * as core from '@discipl/core'
 import { BaseConnector } from '../../discipl-core-baseconnector'
 
-import { map, take } from 'rxjs/operators'
+import { map } from 'rxjs/operators'
+import ObserveResult from '@discipl/core/dist/observe-result'
 
 const ABUNDANCE_SERVICE_NEED_PREDICATE = 'need'
 const ABUNDANCE_SERVICE_ATTENDTO_PREDICATE = 'attendTo'
 const ABUNDANCE_SERVICE_MATCH_PREDICATE = 'matchedNeed'
 const ABUNDANCE_SERVICE_OFFER_PREDICATE = 'offer'
-const ABUNDANCE_SERVICE_REQUIRE_PREDICATE = 'offer'
+const ABUNDANCE_SERVICE_REQUIRE_PREDICATE = 'require'
 const ABUNDANCE_SERVICE_REFER_TO_PREDICATE = 'referTo'
 const ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE = 'referredFrom'
 
@@ -26,9 +27,8 @@ const need = async (connector, what) => {
 
   let matchObserveResult = (await core.observe(null, ssid, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: ssid.did }, false, await getCoreAPI().getConnector(connector)))
 
-  let matchPromise = matchObserveResult.observable.pipe(take(1)).toPromise()
+  let matchPromise = matchObserveResult.takeOne()
 
-  await matchObserveResult.readyPromise
   await core.allow(ssid)
   await core.claim(ssid, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what })
 
@@ -38,9 +38,7 @@ const need = async (connector, what) => {
 
   let serviceInformationObserve = await core.observe(matchClaim.did, ssid)
 
-  let serviceInformationPromise = serviceInformationObserve.observable.pipe(take(1)).toPromise()
-
-  await serviceInformationObserve.readyPromise
+  let serviceInformationPromise = serviceInformationObserve.takeOne()
 
   let myPrivateSsid = await refer(ssid, matchClaim.did)
 
@@ -62,14 +60,12 @@ const attendTo = async (connector, what, requirements) => {
 
   let needObserveResult = (await core.observe(null, { 'did': null, 'privkey': null }, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what }, false, await getCoreAPI().getConnector(connector)))
 
-  let attendObservable = needObserveResult.observable.pipe(map(async (claim) => {
+  let attendObservable = needObserveResult._observable.pipe(map(async (claim) => {
     let referralSsid = await refer(ssid, claim.did)
 
     let referObserveResult = await core.observe(claim.did, referralSsid, { [ABUNDANCE_SERVICE_REFER_TO_PREDICATE]: null }, false)
 
-    let theirReferClaimPromise = referObserveResult.observable.pipe(take(1)).toPromise()
-
-    await referObserveResult.readyPromise
+    let theirReferClaimPromise = referObserveResult.takeOne()
 
     await match(referralSsid, claim.did)
 
@@ -78,10 +74,9 @@ const attendTo = async (connector, what, requirements) => {
 
     let privateObserveResult = await core.observe(theirPrivateDid, referralSsid)
 
-    let privateObservePromise = privateObserveResult.observable.pipe(take(1)).toPromise()
+    let privateObservePromise = privateObserveResult.takeOne()
 
-    await privateObserveResult.readyPromise
-
+    await core.allow(referralSsid, null, theirPrivateDid)
     await require(referralSsid, requirements)
 
     return { 'theirPrivateDid': theirPrivateDid, 'myPrivateSsid': referralSsid, 'informationPromise': privateObservePromise }
@@ -89,8 +84,7 @@ const attendTo = async (connector, what, requirements) => {
 
   return {
     'ssid': ssid,
-    'observable': attendObservable,
-    'readyPromise': needObserveResult.readyPromise
+    'observableResult': new ObserveResult(attendObservable, needObserveResult.readyPromise)
   }
 }
 
@@ -113,6 +107,17 @@ const offer = async (privateSsid, link) => {
   return core.attest(privateSsid, ABUNDANCE_SERVICE_OFFER_PREDICATE, link)
 }
 
+const observeOffer = async (did, ssid) => {
+  let observeResult = await core.observe(did, ssid, { [ABUNDANCE_SERVICE_OFFER_PREDICATE]: null })
+
+  let offer = await observeResult.takeOne()
+
+  let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
+
+  console.log(resultLink)
+  return core.get(resultLink, ssid)
+}
+
 const refer = async (originSsid, targetDid) => {
   // TODO: When refer is needed to another platform, allow configuration of this variable
   let connectorName = BaseConnector.getConnectorName(originSsid.did)
@@ -130,9 +135,6 @@ export {
   need,
   attendTo,
   offer,
-  getCoreAPI,
-  ABUNDANCE_SERVICE_NEED_PREDICATE,
-  ABUNDANCE_SERVICE_ATTENDTO_PREDICATE,
-  ABUNDANCE_SERVICE_MATCH_PREDICATE,
-  ABUNDANCE_SERVICE_OFFER_PREDICATE
+  observeOffer,
+  getCoreAPI
 }
