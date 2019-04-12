@@ -1,108 +1,63 @@
 /* eslint-env mocha */
 import { expect } from 'chai'
 import * as svc from '../src/index.js'
+import * as core from '@discipl/core'
 
-import { take } from 'rxjs/operators'
+import sinon from 'sinon'
 
 describe('descipl-abundance-service-api', () => {
+  describe('with mocked dependencies', () => {
+    it('should be able to express an offer', async () => {
+      let attestStub = sinon.stub(core, 'attest')
+        .returns('link:discipl:mock:123123')
+
+      let ssid = {
+        'did': 'did:discipl:mock:abc',
+        'privkey': 'SECRET'
+      }
+
+      let offerLink = await svc.offer(ssid, 'link:discipl:mock:456')
+
+      expect(offerLink).to.equal('link:discipl:mock:123123')
+
+      expect(attestStub.callCount).to.equal(1)
+      expect(attestStub.args[0]).to.deep.equal([ssid, 'offer', 'link:discipl:mock:456'])
+
+      attestStub.restore()
+    })
+  })
   describe('The discipl abundance service API with ephemeral connector ', () => {
-    it('should be able to claim a need', async () => {
-      let ssid = await svc.need('ephemeral', 'beer')
-      let data = await svc.getCoreAPI().exportLD(ssid.did)
-      // the first claim exported in the channel of the ssid is {need:'beer'}
-      let firstClaim = data[ssid.did][0]
-      expect(JSON.stringify(firstClaim[Object.keys(firstClaim)[0]])).to.equal(JSON.stringify({ [svc.ABUNDANCE_SERVICE_NEED_PREDICATE]: 'beer' }))
-    })
+    it('should be able to help fulfill a scenario', async () => {
+      let serviceSsidAndObservable = await svc.attendTo('ephemeral', 'beer', ['BSN'])
 
-    it('should be able to claim being a service attending to certain needs', async () => {
-      let ssid = await svc.attendTo('ephemeral', 'beer')
-      let data = await svc.getCoreAPI().exportLD(ssid.did)
-      // the first claim exported in the channel of the ssid is {attendTo:'beer'}
-      let firstClaim = data[ssid.did][0]
-      expect(JSON.stringify(firstClaim[Object.keys(firstClaim)[0]])).to.equal(JSON.stringify({ [svc.ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]: 'beer' }))
-    })
+      serviceSsidAndObservable.observableResult.subscribe({
+        'next': async (attendPromise) => {
+          let attendDetails = await attendPromise
+          let information = await attendDetails.informationPromise
 
-    it('should be able to match a need to a service attending to it', async () => {
-      let ssidNeed = await svc.need('ephemeral', 'beer')
-      let dataNeed = await svc.getCoreAPI().exportLD(ssidNeed.did)
-      let needClaim = dataNeed[ssidNeed.did][0]
+          let bsn = information['claim']['data']['BSN']
 
-      let ssidService = await svc.attendTo('ephemeral', 'beer')
-      await svc.match(ssidService, ssidNeed.did)
-      let dataService = await svc.getCoreAPI().exportLD(ssidService.did, 1)
+          let nlxSsid = await svc.getCoreAPI().newSsid('ephemeral')
 
-      // the second claim exported in the channel of the service ssid links to the need claim in the channel of the ssid of the need
-      let secondClaim = dataService[ssidService.did][1]
-      expect(JSON.stringify(secondClaim[Object.keys(secondClaim)[0]][svc.ABUNDANCE_SERVICE_MATCH_PREDICATE][ssidNeed.did][0])).to.equal(JSON.stringify(needClaim))
-    })
+          let nlxClaimLink = await svc.getCoreAPI().claim(nlxSsid, { 'BSN': bsn, 'woonplaats': 'Haarlem' })
+          await svc.getCoreAPI().allow(nlxSsid, nlxClaimLink, attendDetails.theirPrivateDid)
 
-    it('should be able to observe a need being attended', async () => {
-      let ssidService = await svc.attendTo('ephemeral', 'beer')
+          await svc.offer(attendDetails.myPrivateSsid, nlxClaimLink)
+        } })
 
-      let observedNeedPromise = (await svc.observe(ssidService.did, 'ephemeral')).pipe(take(1)).toPromise()
-      let ssidNeed = await svc.need('ephemeral', 'beer')
-      let observedNeed = await observedNeedPromise
+      let need = await svc.need('ephemeral', 'beer')
 
-      expect(observedNeed).to.deep.equal({
-        'claim': {
-          'data': {
-            'need': 'beer'
-          },
-          'previous': null
-        },
-        'did': ssidNeed.did
-      })
-    })
+      await need.serviceInformationPromise
 
-    it('should be able to observe a need being matched', async () => {
-      let ssidService = await svc.attendTo('ephemeral', 'beer')
-      let dataAttend = await svc.getCoreAPI().exportLD(ssidService.did)
-      let attendClaimLink = Object.keys(dataAttend[ssidService.did][0])[0]
+      let resultPromise = svc.observeOffer(need.theirPrivateDid, need.myPrivateSsid)
 
-      let ssidNeed = await svc.need('ephemeral', 'beer')
-      let dataNeed = await svc.getCoreAPI().exportLD(ssidNeed.did)
-      let needClaimLink = Object.keys(dataNeed[ssidNeed.did][0])[0]
+      await svc.getCoreAPI().claim(need.myPrivateSsid, { 'BSN': '123123123' })
 
-      let observedMatchPromise = (await svc.observe(ssidNeed.did, 'ephemeral')).pipe(take(1)).toPromise()
+      let result = await resultPromise
 
-      await svc.match(ssidService, ssidNeed.did)
-
-      let observedMatch = await observedMatchPromise
-
-      expect(observedMatch).to.deep.equal({
-        'claim': {
-          'data': {
-            'matchedNeed': needClaimLink
-          },
-          'previous': attendClaimLink
-        },
-        'did': ssidService.did
-      })
-    })
-
-    it('should be able to observe a need being matched by listening as attending service', async () => {
-      let ssidService = await svc.attendTo('ephemeral', 'beer')
-      let dataAttend = await svc.getCoreAPI().exportLD(ssidService.did)
-      let attendClaimLink = Object.keys(dataAttend[ssidService.did][0])[0]
-
-      let observedNeedPromise = (await svc.observe(ssidService.did, 'ephemeral')).pipe(take(1)).toPromise()
-      let ssidNeed = await svc.need('ephemeral', 'beer')
-      let dataNeed = await svc.getCoreAPI().exportLD(ssidNeed.did)
-      let needClaimLink = Object.keys(dataNeed[ssidNeed.did][0])[0]
-      let observedNeed = await observedNeedPromise
-      let observedMatchPromise = (await svc.observe(ssidNeed.did, 'ephemeral')).pipe(take(1)).toPromise()
-      await svc.match(ssidService, observedNeed.did)
-
-      let observedMatch = await observedMatchPromise
-
-      expect(observedMatch).to.deep.equal({
-        'claim': {
-          'data': {
-            'matchedNeed': needClaimLink
-          },
-          'previous': attendClaimLink
-        },
-        'did': ssidService.did
+      expect(result.data).to.deep.equal({
+        'BSN': '123123123',
+        'woonplaats': 'Haarlem'
       })
     })
   })
