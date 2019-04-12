@@ -19,12 +19,26 @@ const getCoreAPI = () => {
 }
 
 /**
- * Register a need by creating a new ssid that claims the need in itś channel on the platform corresponding to the given connector
+ * @typedef {Object} NeedResult
+ * @property {object} needSsid - Ssid created to publically express the need
+ * @property {object} myPrivateSsid - Ssid created to privately communicate with party serving need
+ * @property {string} theirPrivateDid - Did created to match need in private
+ * @property {Promise<object>} serviceInformationPromise - Promise with the first claim made in the private channel (likely require)
  */
-const need = async (connector, what) => {
-  let ssid = await core.newSsid(connector)
 
-  let matchObserveResult = (await core.observe(null, ssid, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: ssid.did }, false, await getCoreAPI().getConnector(connector)))
+/**
+ * Register a need by creating a new ssid that claims the need in itś channel on the platform corresponding to the given connector
+ *
+ * It will then set up a private channel to communicate with the party that matches the need
+ *
+ * @param {string} connectorName
+ * @param {string} what - Identifier of the need being expressed
+ * @returns {NeedResult}
+ */
+const need = async (connectorName, what) => {
+  let ssid = await core.newSsid(connectorName)
+
+  let matchObserveResult = (await core.observe(null, ssid, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: ssid.did }, false, await getCoreAPI().getConnector(connectorName)))
 
   let matchPromise = matchObserveResult.takeOne()
 
@@ -50,14 +64,29 @@ const need = async (connector, what) => {
 }
 
 /**
- * Register an abundance service by creating a new ssid that claims the service and what needs it attends to in itś channel on the platform corresponding to the given connector
+ * @typedef {Object} AttendResult
+ * @property {object} ssid - Ssid created to publically register attendance
+ * @property {core.ObservableResult} observableResult - Can be subscribed on to implement serving of the need
  */
-const attendTo = async (connector, what, requirements) => {
-  let ssid = await core.newSsid(connector)
+
+/**
+ * Register an abundance service by creating a new ssid that claims the service and what needs it attends to in itś
+ * channel on the platform corresponding to the given connector
+ *
+ * It will automatically set up private channels with matched needing parties
+ *
+ * @param {string} connectorName
+ * @param {string} what - Identifier of the need being attended to
+ * @param {string[]} requirements - Hints to what information is required to fulfill the need
+ * @returns {AttendResult}
+ *
+ */
+const attendTo = async (connectorName, what, requirements) => {
+  let ssid = await core.newSsid(connectorName)
   await core.allow(ssid)
   await core.claim(ssid, { [ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]: what })
 
-  let needObserveResult = (await core.observe(null, { 'did': null, 'privkey': null }, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what }, false, await getCoreAPI().getConnector(connector)))
+  let needObserveResult = (await core.observe(null, { 'did': null, 'privkey': null }, { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what }, false, await getCoreAPI().getConnector(connectorName)))
 
   let attendObservable = needObserveResult._observable.pipe(map(async (claim) => {
     let referralSsid = await refer(ssid, claim.did)
@@ -102,10 +131,24 @@ const require = async (ssid, requirements) => {
   return core.claim(ssid, { [ABUNDANCE_SERVICE_REQUIRE_PREDICATE]: requirements })
 }
 
+/**
+ * Offer a fulfillment of a need. This must be a link to another claim
+ *
+ * @param {object} privateSsid
+ * @param {string} link
+ * @returns {Promise<string>} - The resulting attestation link
+ */
 const offer = async (privateSsid, link) => {
   return core.attest(privateSsid, ABUNDANCE_SERVICE_OFFER_PREDICATE, link)
 }
 
+/**
+ * Observe an offer being made in the private channel
+ *
+ * @param {string} did - Of the party making the offer
+ * @param {object} ssid - That allows access to the offer
+ * @returns {Promise<{data: Object, previous: string}>} - The contents of the linked offer
+ */
 const observeOffer = async (did, ssid) => {
   let observeResult = await core.observe(did, ssid, { [ABUNDANCE_SERVICE_OFFER_PREDICATE]: null })
 
