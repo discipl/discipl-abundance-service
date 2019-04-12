@@ -1,8 +1,31 @@
 /* eslint-env mocha */
 import { expect } from 'chai'
 import * as svc from '../src/index.js'
+import * as core from '@discipl/core'
+
+import sinon from 'sinon'
 
 describe('descipl-abundance-service-api', () => {
+  describe('with mocked dependencies', () => {
+    it('should be able to express an offer', async () => {
+      let attestStub = sinon.stub(core, 'attest')
+        .returns('link:discipl:mock:123123')
+
+      let ssid = {
+        'did': 'did:discipl:mock:abc',
+        'privkey': 'SECRET'
+      }
+
+      let offerLink = await svc.offer(ssid, 'link:discipl:mock:456')
+
+      expect(offerLink).to.equal('link:discipl:mock:123123')
+
+      expect(attestStub.callCount).to.equal(1)
+      expect(attestStub.args[0]).to.deep.equal([ssid, 'offer', 'link:discipl:mock:456'])
+
+      attestStub.restore()
+    })
+  })
   describe('The discipl abundance service API with ephemeral connector ', () => {
     it('should be able to help fulfill a scenario', async () => {
       let serviceSsidAndObservable = await svc.attendTo('ephemeral', 'beer', ['BSN'])
