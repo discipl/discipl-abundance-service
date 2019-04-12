@@ -26,6 +26,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@discipl/core": "^0.11.0",
+    "@discipl/core-baseconnector": "^0.2.1",
     "rxjs": "^6.4.0"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import * as core from '@discipl/core'
-import { BaseConnector } from '../../discipl-core-baseconnector'
+import { BaseConnector } from '@discipl/core-baseconnector'
 
 import { map } from 'rxjs/operators'
 
