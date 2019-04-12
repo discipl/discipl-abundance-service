@@ -2,7 +2,6 @@ import * as core from '@discipl/core'
 import { BaseConnector } from '../../discipl-core-baseconnector'
 
 import { map } from 'rxjs/operators'
-import ObserveResult from '@discipl/core/dist/observe-result'
 
 const ABUNDANCE_SERVICE_NEED_PREDICATE = 'need'
 const ABUNDANCE_SERVICE_ATTENDTO_PREDICATE = 'attendTo'
@@ -84,7 +83,7 @@ const attendTo = async (connector, what, requirements) => {
 
   return {
     'ssid': ssid,
-    'observableResult': new ObserveResult(attendObservable, needObserveResult.readyPromise)
+    'observableResult': new core.ObserveResult(attendObservable, needObserveResult.readyPromise)
   }
 }
 
