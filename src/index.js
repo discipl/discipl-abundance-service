@@ -113,7 +113,6 @@ const observeOffer = async (did, ssid) => {
 
   let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
 
-  console.log(resultLink)
   return core.get(resultLink, ssid)
 }
 
