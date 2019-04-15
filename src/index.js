@@ -49,7 +49,7 @@ const need = async (connectorName, what) => {
 
   // TODO: check match referal validity
 
-  let serviceInformationObserve = await core.observe(matchClaim.did, ssid)
+  let serviceInformationObserve = await core.observe(matchClaim.did, ssid, { [ABUNDANCE_SERVICE_REQUIRE_PREDICATE]: null })
 
   let serviceInformationPromise = serviceInformationObserve.takeOne()
 
