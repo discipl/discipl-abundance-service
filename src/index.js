@@ -103,6 +103,7 @@ const attendTo = async (connectorName, what, requirements) => {
     let privateObserveResult = await core.observe(theirPrivateDid, referralSsid)
 
     let privateObservePromise = privateObserveResult.takeOne()
+    await privateObserveResult._readyPromise
 
     await core.allow(referralSsid, null, theirPrivateDid)
     await require(referralSsid, requirements)
@@ -152,11 +153,12 @@ const offer = async (privateSsid, link) => {
 const observeOffer = async (did, ssid) => {
   let observeResult = await core.observe(did, ssid, { [ABUNDANCE_SERVICE_OFFER_PREDICATE]: null })
 
-  let offer = await observeResult.takeOne()
+  let resultPromise = observeResult.takeOne().then(async (offer) => {
+    let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
+    return core.get(resultLink, ssid)
+  })
 
-  let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
-
-  return core.get(resultLink, ssid)
+  return { 'resultPromise': resultPromise, 'readyPromise': observeResult._readyPromise }
 }
 
 const refer = async (originSsid, targetDid) => {

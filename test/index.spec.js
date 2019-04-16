@@ -49,11 +49,13 @@ describe('descipl-abundance-service-api', () => {
 
       await need.serviceInformationPromise
 
-      let resultPromise = svc.observeOffer(need.theirPrivateDid, need.myPrivateSsid)
+      let observeOffer = await svc.observeOffer(need.theirPrivateDid, need.myPrivateSsid)
+
+      await observeOffer.readyPromise
 
       await svc.getCoreAPI().claim(need.myPrivateSsid, { 'BSN': '123123123' })
 
-      let result = await resultPromise
+      let result = await observeOffer.resultPromise
 
       expect(result.data).to.deep.equal({
         'BSN': '123123123',
