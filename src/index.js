@@ -52,14 +52,17 @@ const need = async (connectorName, what) => {
   let serviceInformationObserve = await core.observe(matchClaim.did, ssid)
 
   let serviceInformationPromise = serviceInformationObserve.takeOne()
+  await serviceInformationObserve._readyPromise
 
   let myPrivateSsid = await refer(ssid, matchClaim.did)
+
+  let serviceInformation = await serviceInformationPromise
 
   return {
     'needSsid': ssid,
     'myPrivateSsid': myPrivateSsid,
     'theirPrivateDid': matchClaim['did'],
-    'serviceInformationPromise': serviceInformationPromise
+    'serviceInformationPromise': serviceInformation
   }
 }
 
@@ -103,6 +106,7 @@ const attendTo = async (connectorName, what, requirements) => {
     let privateObserveResult = await core.observe(theirPrivateDid, referralSsid)
 
     let privateObservePromise = privateObserveResult.takeOne()
+    await privateObserveResult._readyPromise
 
     await core.allow(referralSsid, null, theirPrivateDid)
     await require(referralSsid, requirements)
@@ -152,11 +156,16 @@ const offer = async (privateSsid, link) => {
 const observeOffer = async (did, ssid) => {
   let observeResult = await core.observe(did, ssid, { [ABUNDANCE_SERVICE_OFFER_PREDICATE]: null })
 
-  let offer = await observeResult.takeOne()
+  let resultPromise = observeResult.takeOne().then(async (offer) => {
+    let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
+    let resultClaim = await core.get(resultLink, ssid)
+    return {
+      'claim': resultClaim,
+      'link': resultLink
+    }
+  })
 
-  let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
-
-  return core.get(resultLink, ssid)
+  return { 'resultPromise': resultPromise, 'readyPromise': observeResult._readyPromise }
 }
 
 const refer = async (originSsid, targetDid) => {

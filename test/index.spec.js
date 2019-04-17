@@ -47,18 +47,20 @@ describe('descipl-abundance-service-api', () => {
 
       let need = await svc.need('ephemeral', 'beer')
 
-      await need.serviceInformationPromise
+      let observeOffer = await svc.observeOffer(need.theirPrivateDid, need.myPrivateSsid)
 
-      let resultPromise = svc.observeOffer(need.theirPrivateDid, need.myPrivateSsid)
+      await observeOffer.readyPromise
 
       await svc.getCoreAPI().claim(need.myPrivateSsid, { 'BSN': '123123123' })
 
-      let result = await resultPromise
+      let result = await observeOffer.resultPromise
 
-      expect(result.data).to.deep.equal({
+      expect(result.claim.data).to.deep.equal({
         'BSN': '123123123',
         'woonplaats': 'Haarlem'
       })
+
+      expect(result.link).to.be.a('string')
     })
   })
 })
