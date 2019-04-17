@@ -158,7 +158,11 @@ const observeOffer = async (did, ssid) => {
 
   let resultPromise = observeResult.takeOne().then(async (offer) => {
     let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
-    return core.get(resultLink, ssid)
+    let resultClaim = await core.get(resultLink, ssid)
+    return {
+      'claim': resultClaim,
+      'link': resultLink
+    }
   })
 
   return { 'resultPromise': resultPromise, 'readyPromise': observeResult._readyPromise }

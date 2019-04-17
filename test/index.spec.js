@@ -55,10 +55,12 @@ describe('descipl-abundance-service-api', () => {
 
       let result = await observeOffer.resultPromise
 
-      expect(result.data).to.deep.equal({
+      expect(result.claim.data).to.deep.equal({
         'BSN': '123123123',
         'woonplaats': 'Haarlem'
       })
+
+      expect(result.link).to.be.a('string')
     })
   })
 })
