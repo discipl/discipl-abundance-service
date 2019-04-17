@@ -47,8 +47,6 @@ describe('descipl-abundance-service-api', () => {
 
       let need = await svc.need('ephemeral', 'beer')
 
-      await need.serviceInformationPromise
-
       let observeOffer = await svc.observeOffer(need.theirPrivateDid, need.myPrivateSsid)
 
       await observeOffer.readyPromise

@@ -51,7 +51,7 @@ const need = async (connectorName, what) => {
 
   let serviceInformationObserve = await core.observe(matchClaim.did, ssid)
 
-  let serviceInformationPromise = serviceInformationObserve.takeOne()
+  let serviceInformation = await serviceInformationObserve.takeOne()
 
   let myPrivateSsid = await refer(ssid, matchClaim.did)
 
@@ -59,7 +59,7 @@ const need = async (connectorName, what) => {
     'needSsid': ssid,
     'myPrivateSsid': myPrivateSsid,
     'theirPrivateDid': matchClaim['did'],
-    'serviceInformationPromise': serviceInformationPromise
+    'serviceInformationPromise': serviceInformation
   }
 }
 
