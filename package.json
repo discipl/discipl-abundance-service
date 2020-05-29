@@ -1,6 +1,6 @@
 {
   "name": "@discipl/abundance-service",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "API for expressing and matching needs",
   "main": "dist/index.js",
   "module": "src/index.js",
