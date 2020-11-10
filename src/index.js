@@ -1,4 +1,3 @@
-
 import { BaseConnector } from '@discipl/core-baseconnector'
 
 import { map } from 'rxjs/operators'
@@ -19,6 +18,7 @@ class AbundanceService {
 
   /**
    * retrieve the loaded discipl core api object used by this module
+   * @return {DisciplCore}
    */
   getCoreAPI () {
     return this.core
@@ -44,7 +44,9 @@ class AbundanceService {
   async need (connectorName, what) {
     let ssid = await this.core.newSsid(connectorName)
 
-    let matchObserveResult = (await this.core.observe(null, ssid, { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: ssid.did }, false, await this.core.getConnector(connectorName)))
+    let matchObserveResult = (await this.core.observe(null, ssid,
+      { [ABUNDANCE_SERVICE_MATCH_PREDICATE]: ssid.did }, false,
+      await this.core.getConnector(connectorName)))
 
     let matchPromise = matchObserveResult.takeOne()
 
@@ -55,7 +57,8 @@ class AbundanceService {
 
     // TODO: check match referal validity
 
-    let serviceInformationObserve = await this.core.observe(matchClaim.did, ssid)
+    let serviceInformationObserve = await this.core.observe(matchClaim.did,
+      ssid)
 
     let serviceInformationPromise = serviceInformationObserve.takeOne()
     await serviceInformationObserve._readyPromise
@@ -88,42 +91,52 @@ class AbundanceService {
    * @param {string} what - Identifier of the need being attended to
    * @param {string[]} requirements - Hints to what information is required to fulfill the need
    * @returns {AttendResult}
-   *
    */
   async attendTo (connectorName, what, requirements) {
     let ssid = await this.core.newSsid(connectorName)
     await this.core.allow(ssid)
-    await this.core.claim(ssid, { [ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]: what })
+    await this.core.claim(ssid,
+      { [ABUNDANCE_SERVICE_ATTENDTO_PREDICATE]: what })
 
-    let needObserveResult = (await this.core.observe(null, { 'did': null, 'privkey': null },
-      { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what }, false, await this.core.getConnector(connectorName)))
+    let needObserveResult = (await this.core.observe(null,
+      { 'did': null, 'privkey': null },
+      { [ABUNDANCE_SERVICE_NEED_PREDICATE]: what }, false,
+      await this.core.getConnector(connectorName)))
 
-    let attendObservable = needObserveResult._observable.pipe(map(async (claim) => {
-      let referralSsid = await this.refer(ssid, claim.did)
+    let attendObservable = needObserveResult._observable.pipe(
+      map(async (claim) => {
+        let referralSsid = await this.refer(ssid, claim.did)
 
-      let referObserveResult = await this.core.observe(claim.did, referralSsid, { [ABUNDANCE_SERVICE_REFER_TO_PREDICATE]: null }, false)
+        let referObserveResult = await this.core.observe(claim.did,
+          referralSsid, { [ABUNDANCE_SERVICE_REFER_TO_PREDICATE]: null }, false)
 
-      let theirReferClaimPromise = referObserveResult.takeOne()
+        let theirReferClaimPromise = referObserveResult.takeOne()
 
-      await this.match(referralSsid, claim.did)
+        await this.match(referralSsid, claim.did)
 
-      let theirReferClaim = await theirReferClaimPromise
-      let theirPrivateDid = theirReferClaim['claim']['data'][ABUNDANCE_SERVICE_REFER_TO_PREDICATE]
+        let theirReferClaim = await theirReferClaimPromise
+        let theirPrivateDid = theirReferClaim['claim']['data'][ABUNDANCE_SERVICE_REFER_TO_PREDICATE]
 
-      let privateObserveResult = await this.core.observe(theirPrivateDid, referralSsid)
+        let privateObserveResult = await this.core.observe(theirPrivateDid,
+          referralSsid)
 
-      let privateObservePromise = privateObserveResult.takeOne()
-      await privateObserveResult._readyPromise
+        let privateObservePromise = privateObserveResult.takeOne()
+        await privateObserveResult._readyPromise
 
-      await this.core.allow(referralSsid, null, theirPrivateDid)
-      await this.require(referralSsid, requirements)
+        await this.core.allow(referralSsid, null, theirPrivateDid)
+        await this.require(referralSsid, requirements)
 
-      return { 'theirPrivateDid': theirPrivateDid, 'myPrivateSsid': referralSsid, 'informationPromise': privateObservePromise }
-    }))
+        return {
+          'theirPrivateDid': theirPrivateDid,
+          'myPrivateSsid': referralSsid,
+          'informationPromise': privateObservePromise
+        }
+      }))
 
     return {
       'ssid': ssid,
-      'observableResult': new ObserveResult(attendObservable, needObserveResult.readyPromise)
+      'observableResult': new ObserveResult(attendObservable,
+        needObserveResult.readyPromise)
     }
   }
 
@@ -133,13 +146,13 @@ class AbundanceService {
    * Registering the match by a service will trigger actors observing their need
    */
   async match (referralSsid, didInNeed) {
-    let match = await this.core.attest(referralSsid, ABUNDANCE_SERVICE_MATCH_PREDICATE, didInNeed)
-
-    return match
+    return this.core.attest(referralSsid, ABUNDANCE_SERVICE_MATCH_PREDICATE,
+      didInNeed)
   }
 
   async require (ssid, requirements) {
-    return this.core.claim(ssid, { [ABUNDANCE_SERVICE_REQUIRE_PREDICATE]: requirements })
+    return this.core.claim(ssid,
+      { [ABUNDANCE_SERVICE_REQUIRE_PREDICATE]: requirements })
   }
 
   /**
@@ -150,7 +163,8 @@ class AbundanceService {
    * @returns {Promise<string>} - The resulting attestation link
    */
   async offer (privateSsid, link) {
-    return this.core.attest(privateSsid, ABUNDANCE_SERVICE_OFFER_PREDICATE, link)
+    return this.core.attest(privateSsid, ABUNDANCE_SERVICE_OFFER_PREDICATE,
+      link)
   }
 
   /**
@@ -161,7 +175,8 @@ class AbundanceService {
    * @returns {Promise<{data: Object, previous: string}>} - The contents of the linked offer
    */
   async observeOffer (did, ssid) {
-    let observeResult = await this.core.observe(did, ssid, { [ABUNDANCE_SERVICE_OFFER_PREDICATE]: null })
+    let observeResult = await this.core.observe(did, ssid,
+      { [ABUNDANCE_SERVICE_OFFER_PREDICATE]: null })
 
     let resultPromise = observeResult.takeOne().then(async (offer) => {
       let resultLink = offer['claim']['data'][ABUNDANCE_SERVICE_OFFER_PREDICATE]
@@ -172,7 +187,10 @@ class AbundanceService {
       }
     })
 
-    return { 'resultPromise': resultPromise, 'readyPromise': observeResult._readyPromise }
+    return {
+      'resultPromise': resultPromise,
+      'readyPromise': observeResult._readyPromise
+    }
   }
 
   async refer (originSsid, targetDid) {
@@ -181,9 +199,11 @@ class AbundanceService {
 
     let referralSsid = await this.core.newSsid(connectorName)
     await this.core.allow(referralSsid, null, targetDid)
-    await this.core.claim(referralSsid, { [ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE]: originSsid.did })
+    await this.core.claim(referralSsid,
+      { [ABUNDANCE_SERVICE_REFERRED_FROM_PREDICATE]: originSsid.did })
 
-    await this.core.claim(originSsid, { [ABUNDANCE_SERVICE_REFER_TO_PREDICATE]: referralSsid.did })
+    await this.core.claim(originSsid,
+      { [ABUNDANCE_SERVICE_REFER_TO_PREDICATE]: referralSsid.did })
 
     return referralSsid
   }

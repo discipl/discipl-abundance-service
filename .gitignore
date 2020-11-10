@@ -61,3 +61,4 @@ typings/
 coverage.lcov
 
 dist
+.idea
